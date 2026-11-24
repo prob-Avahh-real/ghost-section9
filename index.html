@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>SECTION 9 · GHOST DIVE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+SC:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#060b12;--bg2:#0a1520;--panel:#0d1a28;
+  --cyan:#2ee6d6;--cyan-dim:#1a8a82;--teal:#0ea5a0;
+  --amber:#e8b84a;--red:#ff4d6a;--ghost:#a8f0ea;
+  --text:#c8e6e2;--muted:#5a7a78;--line:rgba(46,230,214,.18);
+  --scan:rgba(46,230,214,.04);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:"Noto Sans SC","Share Tech Mono",sans-serif;touch-action:none;user-select:none;-webkit-user-select:none}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:100;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,var(--scan) 2px,var(--scan) 4px);opacity:.55}
+#rain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.35}
+#app{position:relative;z-index:1;width:100%;height:100%;display:flex;flex-direction:column}
+
+/* ===== SCREENS ===== */
+.screen{position:absolute;inset:0;display:none;flex-direction:column;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
+.screen.on{display:flex}
+
+/* BOOT */
+#boot{align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,#0d2840 0%,var(--bg) 70%);text-align:center}
+#boot .brand{font-family:Orbitron,sans-serif;font-weight:900;font-size:clamp(28px,9vw,48px);letter-spacing:.12em;
+  color:var(--cyan);text-shadow:0 0 24px rgba(46,230,214,.45);margin-bottom:4px}
+#boot .jp{font-size:13px;letter-spacing:.4em;color:var(--muted);margin-bottom:28px}
+#boot .line{width:min(280px,70vw);height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);margin:0 auto 20px}
+#boot .status{font-family:"Share Tech Mono",monospace;font-size:12px;color:var(--cyan-dim);min-height:1.4em;margin-bottom:24px}
+#boot .cta{font-family:Orbitron,sans-serif;font-size:14px;letter-spacing:.2em;padding:14px 36px;
+  background:transparent;border:1px solid var(--cyan);color:var(--cyan);cursor:pointer;
+  box-shadow:inset 0 0 20px rgba(46,230,214,.08),0 0 20px rgba(46,230,214,.12);transition:transform .12s,background .2s}
+#boot .cta:active{transform:scale(.96);background:rgba(46,230,214,.12)}
+#boot .hint{margin-top:18px;font-size:11px;color:var(--muted);max-width:280px;line-height:1.5}
+
+/* MISSIONS */
+#missions header{padding:18px 0 10px;border-bottom:1px solid var(--line)}
+#missions .title{font-family:Orbitron,sans-serif;font-size:18px;letter-spacing:.15em;color:var(--cyan)}
+#missions .sub{font-size:11px;color:var(--muted);margin-top:4px;letter-spacing:.08em}
+#mission-list{flex:1;overflow-y:auto;padding:14px 0;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+.mission{padding:14px 16px;background:linear-gradient(135deg,var(--panel),var(--bg2));
+  border:1px solid var(--line);border-left:3px solid var(--cyan-dim);cursor:pointer;position:relative;overflow:hidden}
+.mission:active{border-color:var(--cyan);background:rgba(46,230,214,.06)}
+.mission.locked{opacity:.4;pointer-events:none}
+.mission .code{font-family:Orbitron,sans-serif;font-size:11px;color:var(--amber);letter-spacing:.15em}
+.mission .name{font-size:16px;font-weight:700;margin:4px 0 2px}
+.mission .desc{font-size:11px;color:var(--muted);line-height:1.4}
+.mission .meta{display:flex;gap:12px;margin-top:8px;font-family:"Share Tech Mono",monospace;font-size:10px;color:var(--cyan-dim)}
+.mission .stars{position:absolute;top:12px;right:14px;color:var(--amber);font-size:12px;letter-spacing:2px}
+
+/* GAME */
+#game-wrap{padding:0;background:var(--bg)}
+#hud-top{display:flex;justify-content:space-between;align-items:flex-start;padding:10px 12px 6px;pointer-events:none;z-index:5}
+#hud-top .blk .lbl{font-size:9px;letter-spacing:.15em;color:var(--muted);font-family:Orbitron,sans-serif}
+#hud-top .blk .val{font-family:Orbitron,sans-serif;font-size:18px;font-weight:700;color:var(--cyan)}
+#hud-top .blk.r{text-align:right}
+#sync-bar{height:3px;background:rgba(46,230,214,.12);margin:0 12px 4px;border-radius:1px;overflow:hidden}
+#sync-fill{height:100%;width:100%;background:linear-gradient(90deg,var(--teal),var(--cyan));box-shadow:0 0 8px var(--cyan);transition:width .2s}
+#canvas-box{flex:1;position:relative;min-height:0}
+#c{display:block;width:100%;height:100%;touch-action:none}
+#hud-bottom{display:flex;gap:8px;padding:8px 12px 14px;align-items:center}
+.btn{flex:1;font-family:Orbitron,sans-serif;font-size:11px;letter-spacing:.12em;padding:12px 8px;
+  background:var(--panel);border:1px solid var(--line);color:var(--text);cursor:pointer}
+.btn:active{transform:scale(.97)}
+.btn.pri{border-color:var(--cyan);color:var(--cyan);box-shadow:inset 0 0 16px rgba(46,230,214,.08)}
+.btn.warn{border-color:var(--amber);color:var(--amber)}
+.btn.danger{border-color:var(--red);color:var(--red)}
+.btn:disabled{opacity:.35;pointer-events:none}
+#toast{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);font-family:Orbitron,sans-serif;
+  font-size:14px;letter-spacing:.2em;color:var(--ghost);text-shadow:0 0 20px var(--cyan);opacity:0;pointer-events:none;z-index:20;transition:opacity .3s;white-space:nowrap}
+#toast.show{opacity:1}
+#log{position:absolute;left:10px;bottom:70px;font-family:"Share Tech Mono",monospace;font-size:9px;
+  color:var(--cyan-dim);line-height:1.5;pointer-events:none;max-width:55%;opacity:.85}
+
+/* RESULT */
+#result{align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,#0d2840 0%,var(--bg) 70%);text-align:center}
+#result h2{font-family:Orbitron,sans-serif;font-size:28px;letter-spacing:.2em;margin-bottom:8px}
+#result.win h2{color:var(--cyan);text-shadow:0 0 20px rgba(46,230,214,.4)}
+#result.lose h2{color:var(--red)}
+#result .detail{font-size:13px;color:var(--muted);margin-bottom:20px;line-height:1.6}
+#result .stats{display:flex;gap:24px;margin-bottom:28px}
+#result .stats .s .v{font-family:Orbitron,sans-serif;font-size:22px;color:var(--ghost)}
+#result .stats .s .l{font-size:9px;letter-spacing:.15em;color:var(--muted);margin-top:2px}
+#result .actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+
+/* RING / CANE / VOICE */
+#ring-status,#cane-status{position:fixed;right:8px;font-size:9px;padding:3px 8px;border-radius:2px;z-index:50;
+  display:none;font-family:"Share Tech Mono",monospace;border:1px solid var(--line);background:var(--panel);color:var(--muted)}
+#ring-status{top:calc(env(safe-area-inset-top) + 52px)}
+#cane-status{top:calc(env(safe-area-inset-top) + 74px)}
+#ring-status.active{display:block;color:#60a5fa;border-color:#60a5fa}
+#cane-status.active{display:block;color:#c084fc;border-color:#c084fc}
+#voice-dot{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);width:8px;height:8px;border-radius:50%;
+  background:var(--cyan);z-index:50;display:none;opacity:.4}
+#voice-dot.active{display:block;animation:vp .8s ease-in-out infinite}
+@keyframes vp{0%,100%{opacity:.3;box-shadow:0 0 4px var(--cyan)}50%{opacity:1;box-shadow:0 0 12px var(--cyan)}}
+
+/* WATCH */
+@media(max-width:280px),(max-height:300px){
+  #boot .brand{font-size:16px;letter-spacing:.08em}
+  #boot .jp{font-size:8px;margin-bottom:12px;letter-spacing:.2em}
+  #boot .cta{font-size:10px;padding:8px 16px}
+  #boot .hint,#boot .status{font-size:8px}
+  #missions header{padding:8px 0 6px}
+  #missions .title{font-size:12px}
+  #missions .sub{font-size:8px}
+  .mission{padding:8px 10px}
+  .mission .name{font-size:11px}
+  .mission .desc{display:none}
+  .mission .meta{font-size:8px;margin-top:4px}
+  #hud-top .blk .val{font-size:12px}
+  #hud-top .blk .lbl{font-size:7px}
+  #hud-bottom{padding:4px 6px 8px;gap:4px}
+  .btn{font-size:8px;padding:8px 4px;letter-spacing:.06em}
+  #log{display:none}
+  #result h2{font-size:16px}
+  #result .stats .s .v{font-size:14px}
+}
+/* GLASSES */
+@media(max-width:420px) and (max-height:340px),(max-width:340px) and (max-height:420px){
+  #boot .brand{font-size:20px}
+  #missions .title{font-size:14px}
+  .mission .desc{font-size:9px}
+  #hud-top .blk .val{font-size:14px}
+  .btn{font-size:9px;padding:9px 6px}
+}
+</style>
+</head>
+<body>
+<canvas id="rain"></canvas>
+<div id="app">
+  <!-- BOOT -->
+  <div id="boot" class="screen on">
+    <div class="brand">SECTION 9</div>
+    <div class="jp">公安部第九課 · ゴーストダイブ</div>
+    <div class="line"></div>
+    <div class="status" id="boot-status">NEURAL LINK STANDBY…</div>
+    <button class="cta" id="btn-link" type="button">LINK IN</button>
+    <p class="hint">潜入敌方网络，提取幽灵碎片。躲避 ICE，同步率归零即脑死。</p>
+  </div>
+
+  <!-- MISSIONS -->
+  <div id="missions" class="screen">
+    <header>
+      <div class="title">OPS BRIEFING</div>
+      <div class="sub">选择潜入任务 · SELECT DIVE TARGET</div>
+    </header>
+    <div id="mission-list"></div>
+  </div>
+
+  <!-- GAME -->
+  <div id="game-wrap" class="screen">
+    <div id="hud-top">
+      <div class="blk"><div class="lbl">SYNC</div><div class="val" id="v-sync">100%</div></div>
+      <div class="blk" style="text-align:center"><div class="lbl">GHOST</div><div class="val" id="v-ghost">0/3</div></div>
+      <div class="blk r"><div class="lbl">THERM</div><div class="val" id="v-therm">2</div></div>
+    </div>
+    <div id="sync-bar"><div id="sync-fill"></div></div>
+    <div id="canvas-box">
+      <canvas id="c"></canvas>
+      <div id="toast"></div>
+      <div id="log"></div>
+    </div>
+    <div id="hud-bottom">
+      <button class="btn warn" id="btn-therm" type="button">THERMOPTIC</button>
+      <button class="btn pri" id="btn-hack" type="button">DIVE / HACK</button>
+      <button class="btn danger" id="btn-abort" type="button">ABORT</button>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result" class="screen">
+    <h2 id="res-title">EXTRACTED</h2>
+    <div class="detail" id="res-detail"></div>
+    <div class="stats">
+      <div class="s"><div class="v" id="res-ghost">0</div><div class="l">GHOSTS</div></div>
+      <div class="s"><div class="v" id="res-sync">0%</div><div class="l">SYNC LEFT</div></div>
+      <div class="s"><div class="v" id="res-time">0s</div><div class="l">TIME</div></div>
+    </div>
+    <div class="actions">
+      <button class="cta" id="btn-retry" type="button" style="font-family:Orbitron,sans-serif;font-size:12px;letter-spacing:.15em;padding:12px 24px;background:transparent;border:1px solid var(--cyan);color:var(--cyan);cursor:pointer">RETRY</button>
+      <button class="cta" id="btn-brief" type="button" style="font-family:Orbitron,sans-serif;font-size:12px;letter-spacing:.15em;padding:12px 24px;background:transparent;border:1px solid var(--muted);color:var(--muted);cursor:pointer">BRIEFING</button>
+    </div>
+  </div>
+</div>
+<div id="ring-status">RING</div>
+<div id="cane-status">CANE</div>
+<div id="voice-dot"></div>
+
+<script>
+/* ========== RAIN BG ========== */
+(function(){
+  const cv=document.getElementById('rain'),cx=cv.getContext('2d');
+  let W,H,drops=[];
+  function resize(){W=cv.width=innerWidth;H=cv.height=innerHeight;
+    drops=Array.from({length:Math.min(80,Math.floor(W/8))},()=>({x:Math.random()*W,y:Math.random()*H,l:8+Math.random()*16,s:2+Math.random()*4}));}
+  function draw(){cx.clearRect(0,0,W,H);cx.strokeStyle='rgba(46,230,214,.12)';cx.lineWidth=1;
+    for(const d of drops){cx.beginPath();cx.moveTo(d.x,d.y);cx.lineTo(d.x-1,d.y+d.l);cx.stroke();
+      d.y+=d.s;d.x-=.3;if(d.y>H){d.y=-20;d.x=Math.random()*W}}
+    requestAnimationFrame(draw)}
+  addEventListener('resize',resize);resize();draw();
+})();
+
+/* ========== DATA ========== */
+const MISSIONS=[
+  {id:0,code:'S9-01',name:'港湾节点',desc:'潜入新港码头安保网，提取走私幽灵碎片。',cols:5,rows:6,ice:2,ghosts:2,barriers:3,therm:2,locked:false},
+  {id:1,code:'S9-02',name:'人形公司',desc:'人形机器人公司内部网。ICE 更密，屏障更多。',cols:6,rows:7,ice:3,ghosts:3,barriers:5,therm:2,locked:true},
+  {id:2,code:'S9-03',name:'傀儡师',desc:'深度幽灵潜行。高密度 ICE，同步持续衰减。',cols:7,rows:8,ice:4,ghosts:4,barriers:7,therm:3,locked:true,drain:true},
+];
+const SAVE_KEY='s9_ghost_dive_v1';
+function loadProgress(){try{return JSON.parse(localStorage.getItem(SAVE_KEY)||'{}')}catch(e){return{}}}
+function saveProgress(p){localStorage.setItem(SAVE_KEY,JSON.stringify(p))}
+let progress=loadProgress();
+MISSIONS.forEach(m=>{if(progress.cleared&&progress.cleared[m.id])m.locked=false;if(m.id===0)m.locked=false;
+  if(progress.cleared&&progress.cleared[m.id-1])m.locked=false});
+
+/* ========== UI HELPERS ========== */
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on')}
+function toast(msg,ms=1200){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),ms)}
+function log(msg){const el=document.getElementById('log');const lines=(el._lines||[]);lines.push('> '+msg);if(lines.length>5)lines.shift();el._lines=lines;el.textContent=lines.join('\n')}
+
+/* ========== BOOT ========== */
+const bootLines=['NEURAL LINK STANDBY…','AUTH: SECTION 9 CLEARANCE','THERMOPTIC SUIT: ONLINE','GHOST PROTOCOL LOADED','READY FOR DIVE'];
+let bootI=0;
+const bootTimer=setInterval(()=>{bootI=(bootI+1)%bootLines.length;document.getElementById('boot-status').textContent=bootLines[bootI]},900);
+document.getElementById('btn-link').onclick=()=>{clearInterval(bootTimer);renderMissions();show('missions');enableSensors()};
+
+function renderMissions(){
+  const list=document.getElementById('mission-list');list.innerHTML='';
+  MISSIONS.forEach(m=>{
+    if(progress.cleared&&progress.cleared[m.id-1])m.locked=false;
+    if(m.id===0)m.locked=false;
+    const stars=progress.stars&&progress.stars[m.id]?progress.stars[m.id]:0;
+    const el=document.createElement('div');el.className='mission'+(m.locked?' locked':'');
+    el.innerHTML=`<div class="code">${m.code}</div><div class="name">${m.name}</div><div class="desc">${m.desc}</div>
+      <div class="meta"><span>GRID ${m.cols}×${m.rows}</span><span>ICE ×${m.ice}</span><span>GHOST ×${m.ghosts}</span></div>
+      <div class="stars">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div>`;
+    el.onclick=()=>{if(!m.locked)startMission(m)};
+    list.appendChild(el);
+  });
+}
+
+/* ========== GAME STATE ========== */
+const canvas=document.getElementById('c'),ctx=canvas.getContext('2d');
+let W,H,cell=40,ox=0,oy=0;
+let mission=null,grid=[],player={x:0,y:0},iceList=[],ghosts=[],barriers=new Set();
+let sync=100,therm=2,thermActive=false,thermUntil=0,ghostGot=0,running=false;
+let startTime=0,animId=0,selected=null,pathHint=[];
+let drainRate=0;
+
+function resizeGame(){
+  const box=document.getElementById('canvas-box');
+  W=canvas.width=box.clientWidth*devicePixelRatio;
+  H=canvas.height=box.clientHeight*devicePixelRatio;
+  canvas.style.width=box.clientWidth+'px';canvas.style.height=box.clientHeight+'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  layoutGrid();
+}
+addEventListener('resize',()=>{if(running)resizeGame()});
+
+function layoutGrid(){
+  if(!mission)return;
+  const bw=canvas.clientWidth,bh=canvas.clientHeight;
+  cell=Math.floor(Math.min((bw-24)/mission.cols,(bh-24)/mission.rows));
+  cell=Math.max(28,Math.min(56,cell));
+  ox=Math.floor((bw-mission.cols*cell)/2);
+  oy=Math.floor((bh-mission.rows*cell)/2);
+}
+
+function key(x,y){return x+','+y}
+function inBounds(x,y){return x>=0&&y>=0&&x<mission.cols&&y<mission.rows}
+function neighbors(x,y){return [[x+1,y],[x-1,y],[x,y+1],[x,y-1]].filter(([a,b])=>inBounds(a,b))}
+
+function startMission(m){
+  mission=m;sync=100;therm=m.therm;thermActive=false;ghostGot=0;drainRate=m.drain?2.2:0;
+  startTime=performance.now();running=true;selected=null;pathHint=[];
+  document.getElementById('log')._lines=[];document.getElementById('log').textContent='';
+  // build grid
+  grid=[];for(let y=0;y<m.rows;y++){grid[y]=[];for(let x=0;x<m.cols;x++)grid[y][x]={walk:true}}
+  player={x:0,y:Math.floor(m.rows/2)};
+  const exit={x:m.cols-1,y:Math.floor(m.rows/2)};
+  // barriers
+  barriers=new Set();
+  let tries=0;while(barriers.size<m.barriers&&tries++<200){
+    const x=1+Math.floor(Math.random()*(m.cols-2)),y=Math.floor(Math.random()*m.rows);
+    if((x===player.x&&y===player.y)||(x===exit.x&&y===exit.y))continue;
+    barriers.add(key(x,y));
+  }
+  // ghosts
+  ghosts=[];tries=0;while(ghosts.length<m.ghosts&&tries++<200){
+    const x=2+Math.floor(Math.random()*(m.cols-3)),y=Math.floor(Math.random()*m.rows);
+    if(barriers.has(key(x,y))||(x===player.x&&y===player.y))continue;
+    if(ghosts.some(g=>g.x===x&&g.y===y))continue;
+    ghosts.push({x,y,got:false});
+  }
+  // ICE
+  iceList=[];tries=0;while(iceList.length<m.ice&&tries++<200){
+    const x=2+Math.floor(Math.random()*(m.cols-2)),y=Math.floor(Math.random()*m.rows);
+    if(barriers.has(key(x,y))||(x===player.x&&y===player.y))continue;
+    if(iceList.some(i=>i.x===x&&i.y===y))continue;
+    iceList.push({x,y,dir:Math.random()<.5?1:-1,axis:Math.random()<.5?'x':'y',cd:0});
+  }
+  show('game-wrap');
+  requestAnimationFrame(()=>{resizeGame();updateHud();log('DIVE INITIATED · '+m.code);toast(m.name);loop()});
+}
+
+function updateHud(){
+  document.getElementById('v-sync').textContent=Math.max(0,Math.ceil(sync))+'%';
+  document.getElementById('sync-fill').style.width=Math.max(0,sync)+'%';
+  document.getElementById('v-ghost').textContent=ghostGot+'/'+mission.ghosts;
+  document.getElementById('v-therm').textContent=therm+(thermActive?' ◈':'');
+  document.getElementById('btn-therm').disabled=therm<=0&&!thermActive;
+}
+
+function pathfind(sx,sy,tx,ty){
+  const q=[[sx,sy]],prev=new Map();prev.set(key(sx,sy),null);
+  while(q.length){
+    const [x,y]=q.shift();
+    if(x===tx&&y===ty)break;
+    for(const [nx,ny] of neighbors(x,y)){
+      const k=key(nx,ny);if(prev.has(k))continue;
+      if(barriers.has(k)&&!(nx===tx&&ny===ty))continue;
+      prev.set(k,[x,y]);q.push([nx,ny]);
+    }
+  }
+  if(!prev.has(key(tx,ty)))return null;
+  const path=[];let cur=key(tx,ty);
+  while(cur){const [a,b]=cur.split(',').map(Number);path.push({x:a,y:b});
+    const p=prev.get(cur);cur=p?key(p[0],p[1]):null}
+  path.reverse();return path;
+}
+
+function tryMove(tx,ty){
+  if(!running||!inBounds(tx,ty))return;
+  if(tx===player.x&&ty===player.y)return;
+  if(barriers.has(key(tx,ty))){log('BARRIER · HACK REQUIRED');selected={x:tx,y:ty};pathHint=[];toast('HACK BARRIER');return}
+  const path=pathfind(player.x,player.y,tx,ty);
+  if(!path||path.length<2){log('NO ROUTE');toast('NO ROUTE');return}
+  // move one step along path
+  const step=path[1];
+  player.x=step.x;player.y=step.y;
+  sync=Math.max(0,sync-0.8);
+  // collect ghost
+  const g=ghosts.find(g=>!g.got&&g.x===player.x&&g.y===player.y);
+  if(g){g.got=true;ghostGot++;log('GHOST FRAGMENT +1');toast('GHOST ACQUIRED');sync=Math.min(100,sync+8)}
+  checkIceHit();
+  checkWinLose();
+  updateHud();
+  selected=null;pathHint=pathfind(player.x,player.y,tx,ty)||[];
+}
+
+function hackSelected(){
+  if(!running)return;
+  // if on ghost already handled by move
+  if(selected&&barriers.has(key(selected.x,selected.y))){
+    // adjacent check
+    const adj=neighbors(player.x,player.y).some(([a,b])=>a===selected.x&&b===selected.y);
+    if(!adj){toast('MOVE CLOSER');log('OUT OF RANGE');return}
+    barriers.delete(key(selected.x,selected.y));
+    sync=Math.max(0,sync-6);
+    log('BARRIER BREACHED');toast('BREACHED');
+    selected=null;updateHud();checkWinLose();return;
+  }
+  // dive toward nearest ghost if nothing selected
+  const next=ghosts.find(g=>!g.got);
+  if(next){tryMove(next.x,next.y);return}
+  // exit
+  tryMove(mission.cols-1,Math.floor(mission.rows/2));
+}
+
+function activateTherm(){
+  if(!running||therm<=0||thermActive)return;
+  therm--;thermActive=true;thermUntil=performance.now()+3500;
+  log('THERMOPTIC CAMO ON');toast('THERMOPTIC');updateHud();
+}
+
+function checkIceHit(){
+  if(thermActive)return;
+  for(const ice of iceList){
+    if(ice.x===player.x&&ice.y===player.y){
+      sync=Math.max(0,sync-22);log('ICE HIT · SYNC -22');toast('ICE CONTACT',900);
+      // knock back toward entry
+      if(player.x>0)player.x--;
+    }
+  }
+}
+
+function moveIce(dt){
+  for(const ice of iceList){
+    ice.cd-=dt;if(ice.cd>0)continue;
+    ice.cd=380+Math.random()*220;
+    let nx=ice.x,ny=ice.y;
+    if(ice.axis==='x')nx+=ice.dir;else ny+=ice.dir;
+    if(!inBounds(nx,ny)||barriers.has(key(nx,ny))){ice.dir*=-1;continue}
+    ice.x=nx;ice.y=ny;
+  }
+  checkIceHit();
+}
+
+function checkWinLose(){
+  if(sync<=0){endGame(false,'同步率归零。脑死判定。');return}
+  const atExit=player.x===mission.cols-1&&player.y===Math.floor(mission.rows/2);
+  if(atExit&&ghostGot>=mission.ghosts){endGame(true,'幽灵提取完成。欢迎回来，少佐。');return}
+  if(atExit&&ghostGot<mission.ghosts){log('INCOMPLETE · NEED ALL GHOSTS');toast('NEED GHOSTS')}
+}
+
+function endGame(win,msg){
+  running=false;cancelAnimationFrame(animId);
+  const elapsed=((performance.now()-startTime)/1000)|0;
+  const el=document.getElementById('result');
+  el.classList.toggle('win',win);el.classList.toggle('lose',!win);
+  document.getElementById('res-title').textContent=win?'EXTRACTED':'FLATLINED';
+  document.getElementById('res-detail').textContent=msg;
+  document.getElementById('res-ghost').textContent=ghostGot;
+  document.getElementById('res-sync').textContent=Math.max(0,Math.ceil(sync))+'%';
+  document.getElementById('res-time').textContent=elapsed+'s';
+  if(win){
+    progress.cleared=progress.cleared||{};progress.cleared[mission.id]=true;
+    progress.stars=progress.stars||{};
+    let s=1;if(sync>=50)s++;if(elapsed<45+mission.id*20)s++;
+    progress.stars[mission.id]=Math.max(progress.stars[mission.id]||0,s);
+    saveProgress(progress);
+    const next=MISSIONS[mission.id+1];if(next)next.locked=false;
+  }
+  show('result');
+}
+
+/* ========== RENDER ========== */
+let last=0;
+function loop(t){
+  if(!running)return;
+  const dt=last?t-last:16;last=t;
+  if(thermActive&&t>=thermUntil){thermActive=false;log('THERMOPTIC OFF');updateHud()}
+  if(drainRate){sync=Math.max(0,sync-drainRate*dt/1000);updateHud();if(sync<=0){checkWinLose();return}}
+  moveIce(dt);
+  draw();
+  animId=requestAnimationFrame(loop);
+}
+
+function draw(){
+  const bw=canvas.clientWidth,bh=canvas.clientHeight;
+  ctx.clearRect(0,0,bw,bh);
+  // panel
+  ctx.fillStyle='rgba(10,21,32,.65)';ctx.fillRect(ox-8,oy-8,mission.cols*cell+16,mission.rows*cell+16);
+  ctx.strokeStyle='rgba(46,230,214,.2)';ctx.lineWidth=1;ctx.strokeRect(ox-8.5,oy-8.5,mission.cols*cell+16,mission.rows*cell+16);
+
+  for(let y=0;y<mission.rows;y++)for(let x=0;x<mission.cols;x++){
+    const px=ox+x*cell,py=oy+y*cell;
+    ctx.strokeStyle='rgba(46,230,214,.1)';ctx.strokeRect(px+.5,py+.5,cell-1,cell-1);
+    // exit
+    if(x===mission.cols-1&&y===Math.floor(mission.rows/2)){
+      ctx.fillStyle='rgba(232,184,74,.15)';ctx.fillRect(px+2,py+2,cell-4,cell-4);
+      ctx.fillStyle='var(--amber)';ctx.font=`${Math.max(9,cell*.22)}px Orbitron`;ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillStyle='#e8b84a';ctx.fillText('EXIT',px+cell/2,py+cell/2);
+    }
+    // entry glow
+    if(x===0&&y===Math.floor(mission.rows/2)){
+      ctx.fillStyle='rgba(46,230,214,.08)';ctx.fillRect(px+2,py+2,cell-4,cell-4);
+    }
+  }
+
+  // barriers
+  for(const b of barriers){
+    const [x,y]=b.split(',').map(Number);const px=ox+x*cell,py=oy+y*cell;
+    ctx.fillStyle='rgba(255,77,106,.2)';ctx.fillRect(px+3,py+3,cell-6,cell-6);
+    ctx.strokeStyle='#ff4d6a';ctx.strokeRect(px+3.5,py+3.5,cell-7,cell-7);
+    ctx.beginPath();ctx.moveTo(px+8,py+8);ctx.lineTo(px+cell-8,py+cell-8);ctx.moveTo(px+cell-8,py+8);ctx.lineTo(px+8,py+cell-8);ctx.stroke();
+  }
+
+  // ghosts
+  for(const g of ghosts){
+    if(g.got)continue;
+    const px=ox+g.x*cell+cell/2,py=oy+g.y*cell+cell/2;
+    const pulse=.6+.4*Math.sin(performance.now()/300);
+    ctx.beginPath();ctx.arc(px,py,cell*.22*pulse,0,Math.PI*2);
+    ctx.fillStyle=`rgba(168,240,234,${.35+pulse*.3})`;ctx.fill();
+    ctx.strokeStyle='#a8f0ea';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.beginPath();ctx.arc(px,py,cell*.08,0,Math.PI*2);ctx.fillStyle='#2ee6d6';ctx.fill();
+  }
+
+  // path hint
+  if(pathHint.length>1){
+    ctx.strokeStyle='rgba(46,230,214,.35)';ctx.lineWidth=2;ctx.setLineDash([4,4]);ctx.beginPath();
+    pathHint.forEach((p,i)=>{const px=ox+p.x*cell+cell/2,py=oy+p.y*cell+cell/2;i?ctx.lineTo(px,py):ctx.moveTo(px,py)});
+    ctx.stroke();ctx.setLineDash([]);
+  }
+
+  // ICE
+  for(const ice of iceList){
+    const px=ox+ice.x*cell+cell/2,py=oy+ice.y*cell+cell/2;
+    ctx.save();ctx.translate(px,py);ctx.rotate(performance.now()/400);
+    ctx.strokeStyle='#ff4d6a';ctx.lineWidth=2;
+    ctx.strokeRect(-cell*.2,-cell*.2,cell*.4,cell*.4);
+    ctx.strokeRect(-cell*.12,-cell*.12,cell*.24,cell*.24);
+    ctx.restore();
+    ctx.fillStyle='rgba(255,77,106,.5)';ctx.beginPath();ctx.arc(px,py,3,0,Math.PI*2);ctx.fill();
+  }
+
+  // selected
+  if(selected){
+    const px=ox+selected.x*cell,py=oy+selected.y*cell;
+    ctx.strokeStyle='#2ee6d6';ctx.lineWidth=2;ctx.strokeRect(px+1,py+1,cell-2,cell-2);
+  }
+
+  // player
+  {
+    const px=ox+player.x*cell+cell/2,py=oy+player.y*cell+cell/2;
+    if(thermActive){ctx.globalAlpha=.35;ctx.strokeStyle='#2ee6d6';ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.arc(px,py,cell*.28,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1}
+    else{
+      ctx.beginPath();ctx.arc(px,py,cell*.26,0,Math.PI*2);
+      ctx.fillStyle='rgba(46,230,214,.2)';ctx.fill();
+      ctx.strokeStyle='#2ee6d6';ctx.lineWidth=2;ctx.stroke();
+      // major silhouette — diamond
+      ctx.beginPath();
+      ctx.moveTo(px,py-cell*.16);ctx.lineTo(px+cell*.12,py);ctx.lineTo(px,py+cell*.16);ctx.lineTo(px-cell*.12,py);
+      ctx.closePath();ctx.fillStyle='#2ee6d6';ctx.fill();
+    }
+  }
+}
+
+/* ========== INPUT ========== */
+function canvasToCell(e){
+  const r=canvas.getBoundingClientRect();
+  const cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;
+  const cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+  const x=Math.floor((cx-ox)/cell),y=Math.floor((cy-oy)/cell);
+  return {x,y};
+}
+canvas.addEventListener('pointerdown',e=>{
+  if(!running)return;
+  const {x,y}=canvasToCell(e);
+  if(!inBounds(x,y))return;
+  if(barriers.has(key(x,y))){selected={x,y};pathHint=[];toast('HACK?');return}
+  selected={x,y};
+  pathHint=pathfind(player.x,player.y,x,y)||[];
+  tryMove(x,y);
+},{passive:true});
+
+document.getElementById('btn-therm').onclick=activateTherm;
+document.getElementById('btn-hack').onclick=hackSelected;
+document.getElementById('btn-abort').onclick=()=>{if(running)endGame(false,'任务中止。链路切断。')};
+document.getElementById('btn-retry').onclick=()=>{if(mission)startMission(mission)};
+document.getElementById('btn-brief').onclick=()=>{renderMissions();show('missions')};
+
+// swipe
+let sx0=0,sy0=0;
+canvas.addEventListener('touchstart',e=>{sx0=e.touches[0].clientX;sy0=e.touches[0].clientY},{passive:true});
+canvas.addEventListener('touchend',e=>{
+  if(!running)return;
+  const dx=e.changedTouches[0].clientX-sx0,dy=e.changedTouches[0].clientY-sy0;
+  if(Math.hypot(dx,dy)<28)return;
+  let tx=player.x,ty=player.y;
+  if(Math.abs(dx)>Math.abs(dy))tx+=dx>0?1:-1;else ty+=dy>0?1:-1;
+  tryMove(tx,ty);
+},{passive:true});
+
+// keyboard
+addEventListener('keydown',e=>{
+  if(!running)return;
+  const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]};
+  const d=m[e.key];if(d){e.preventDefault();tryMove(player.x+d[0],player.y+d[1])}
+  if(e.key===' '||e.key==='Enter')hackSelected();
+  if(e.key==='t'||e.key==='T')activateTherm();
+});
+
+/* ========== SMART RING / CANE / VOICE ========== */
+let ringOn=false,caneOn=false,ringThrottle=0,caneThrottle=0;
+function enableSensors(){
+  // iOS permission
+  const ask=async()=>{
+    try{
+      if(typeof DeviceOrientationEvent!=='undefined'&&DeviceOrientationEvent.requestPermission){
+        const r=await DeviceOrientationEvent.requestPermission();
+        if(r==='granted')bindRing();
+      }else bindRing();
+    }catch(e){}
+    try{
+      if(typeof DeviceMotionEvent!=='undefined'&&DeviceMotionEvent.requestPermission){
+        const r=await DeviceMotionEvent.requestPermission();
+        if(r==='granted')bindCane();
+      }else bindCane();
+    }catch(e){}
+  };
+  ask();
+  // voice for glasses
+  startVoice();
+}
+function bindRing(){
+  let frames=0;
+  addEventListener('deviceorientation',e=>{
+    if(!running)return;
+    frames++;if(frames%8)return;
+    const b=e.beta||0,g=e.gamma||0;
+    if(Math.abs(b)<5&&Math.abs(g)<5)return;
+    const now=performance.now();if(now-ringThrottle<220)return;ringThrottle=now;
+    if(!ringOn){ringOn=true;const el=document.getElementById('ring-status');el.classList.add('active');el.textContent='RING ●'}
+    // shake confirm
+    if(Math.abs(b)>20||Math.abs(g)>20){hackSelected();return}
+    let tx=player.x,ty=player.y;
+    if(Math.abs(g)>=Math.abs(b)&&Math.abs(g)>5)tx+=g>0?1:-1;
+    else if(Math.abs(b)>5)ty+=b>0?1:-1;
+    tryMove(tx,ty);
+  },true);
+}
+function bindCane(){
+  let lastA=0,frames=0;
+  addEventListener('devicemotion',e=>{
+    if(!running)return;
+    frames++;if(frames%6)return;
+    const a=e.accelerationIncludingGravity;if(!a)return;
+    const mag=Math.hypot(a.x||0,a.y||0,a.z||0);
+    const spike=Math.abs(mag-lastA);lastA=mag;
+    const now=performance.now();if(now-caneThrottle<180)return;
+    if(!caneOn&&spike>2){caneOn=true;const el=document.getElementById('cane-status');el.classList.add('active');el.textContent='CANE ●'}
+    if(spike>8){caneThrottle=now;hackSelected();return}
+    if(spike>3){
+      caneThrottle=now;
+      const ax=a.x||0;
+      tryMove(player.x+(ax>0?1:-1),player.y);
+    }
+  },true);
+}
+function startVoice(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR)return;
+  const rec=new SR();rec.lang='zh-CN';rec.continuous=true;rec.interimResults=false;
+  const dot=document.getElementById('voice-dot');
+  rec.onresult=ev=>{
+    const t=(ev.results[ev.results.length-1][0].transcript||'').trim().toLowerCase();
+    if(!running)return;
+    dot.classList.add('active');setTimeout(()=>dot.classList.remove('active'),600);
+    if(/上|北|up|前/.test(t))tryMove(player.x,player.y-1);
+    else if(/下|南|down|后/.test(t))tryMove(player.x,player.y+1);
+    else if(/左|西|left/.test(t))tryMove(player.x-1,player.y);
+    else if(/右|东|right/.test(t))tryMove(player.x+1,player.y);
+    else if(/黑|hack|潜|dive|破/.test(t))hackSelected();
+    else if(/隐|therm|迷彩|光学/.test(t))activateTherm();
+  };
+  rec.onerror=()=>{};
+  try{rec.start()}catch(e){}
+  setInterval(()=>{try{rec.start()}catch(e){}},3000);
+}
+</script>
+</body>
+</html>
